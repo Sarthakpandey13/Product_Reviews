@@ -1,0 +1,115 @@
+
+
+
+
+service: Product-Reviews
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ap-south-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    DYNAMODB_TABLE_NAME: ${self:custom.dynamoDbTableName}
+    TOKEN: ${self:custom.token}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:BatchWriteItem
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.dynamoDbTableName}
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.dynamoDbTableName}/*
+custom:
+  stage: ${opt:stage, 'dev'}
+  dynamoDbTableName: Product-${self:custom.stage}-Reviews
+  token: 547ruhfej98uijherfui34kjerh8
+
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin
+
+functions:
+  uploadCSV:
+    handler: handler.uploadCSVHandler
+    events:
+      - http:
+          path: upload-csv
+          method: post
+          cors: true
+
+  getProductId:
+    handler: handler.getProductIdHandler
+    events:
+      - http:
+          path: get-productid
+          method: get
+          cors: true
+
+  getReviewId:
+    handler: handler.getReviewIdHandler
+    events:
+      - http:
+          path: get-reviewid
+          method: get
+          cors: true
+
+  insertDynamoDB:
+    handler: handler.insertDynamoDBHandler
+    events:
+      - http:
+          path: insert-dynamodb
+          method: post
+          cors: true
+
+  putDynamoDB:
+    handler: handler.putDynamoDBHandler
+    events:
+      - http:
+          path: put-dynamodb
+          method: put
+          cors: true
+
+  updateDynamoDB:
+    handler: handler.updateDynamoDBHandler
+    events:
+      - http:
+          path: update-dynamodb
+          method: post
+          cors: true
+
+  xmlDynamoDB:
+    handler: handler.xmlDynamoDBHandler
+    events:
+      - http:
+          path: xml-dynamodb
+          method: get
+          cors: true
+
+resources:
+  Resources:
+    ReviewsDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_NAME}
+        AttributeDefinitions:
+          - AttributeName: review_id
+            AttributeType: S
+          - AttributeName: product_ids_mpn
+            AttributeType: S
+        KeySchema:
+          - AttributeName: review_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+          - IndexName: product_ids_mpn-index
+            KeySchema:
+              - AttributeName: product_ids_mpn
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
